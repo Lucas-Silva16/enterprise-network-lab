@@ -31,14 +31,14 @@ As três localizações estão interligadas via routers ISR4331 através de um r
 | Localização | Equipamento | Modelo | Qtd |
 |---|---|---|---|
 | Prédio — Andares | Switch | Cisco 2960-24TT | 4 |
-| Prédio — Core | Router | ISR4331 | 1 |
+| Prédio — Core | Router | 2991 | 1 |
 | Server Room | Switch | Cisco 2960-24TT | 1 |
 | Server Room | Router | ISR4331 | 1 |
 | Casa do Dono | Switch | Cisco 2960-24TT | 1 |
 | Casa do Dono | Router | ISR4331 | 1 |
 | Internet | Router | ISR4331 | 1 |
 
-> O router ISR4331 foi escolhido por suportar sub-interfaces para inter-VLAN routing (router-on-a-stick), comandos IOS completos e static routing — modelo padrão em laboratórios CCNA.
+> O router Cisco 2911 foi escolhido para o R-Predio por suportar sub-interfaces para inter-VLAN routing (router-on-a-stick) e comandos IOS completos. O ISR4331 foi usado nos restantes routers por ser o modelo padrão em laboratórios CCNA.
 
 ---
 
@@ -92,7 +92,34 @@ Todos os switches foram configurados com:
 - **Password enable secret** para acesso ao modo privilegiado
 - **Password nas linhas console e VTY**
 - **Portas não utilizadas em shutdown** como medida de segurança
-- **Falta adicionar lockout quando se insere palavra passe errada**
+
+| Switch | Localização | VLANs | Portas access | Porta trunk |
+|---|---|---|---|---|
+| Switch2 | Andar 3 — Chefe | VLAN 30, VLAN 40 | fa0/1–fa0/4 | fa0/5 |
+| Switch0 | Andar 2 — IT | VLAN 20 | fa0/1–fa0/15 | fa0/1, fa0/16 |
+| Switch1 | Andar 1 — RH | VLAN 10 | fa0/1–fa0/6 | fa0/7, fa0/8, fa0/9, fa0/10 |
+| Switch6 | Andar 1 — VoIP | VLAN 40 | fa0/1–fa0/4 | fa0/2 |
+| Switch4 | Server Room | VLAN 50 | fa0/1–fa0/7 | fa0/1 |
+| Switch3 | Casa do Dono | VLAN 60 | fa0/2, fa0/3 | fa0/1 |
+
+---
+
+##  Acesso Remoto — SSH
+ 
+O dono da empresa consegue gerir o **R-Casa** remotamente via SSH a partir do seu PC (PC18) de forma segura.
+ 
+| Campo | Valor |
+|---|---|
+| Protocolo | SSH v2 |
+| IP de destino | 192.168.3.1 (R-Casa) |
+| Username | cisco |
+| Autenticação | Login local |
+ 
+Para ativar o SSH foi necessário:
+- Definir um hostname (`R-Casa`)
+- Configurar um domínio (`ip domain-name empresa.pt`)
+- Gerar chaves RSA de 1024 bits (`crypto key generate rsa`)
+- Configurar `ip ssh version 2` e `transport input ssh` nas linhas VTY
 
 ---
 
@@ -105,17 +132,64 @@ O Cisco 2960 ativa o STP automaticamente — não requer configuração manual. 
 O LACP agrega múltiplos cabos entre dois switches para redundância e maior largura de banda. Na topologia atual existe apenas um cabo entre cada par de switches, pelo que não se aplica.
 
 ---
+ 
+##  Problemas Encontrados e Soluções
+ 
+### Problema 1 — DHCP Request Failed (Native VLAN)
+ 
+**Sintoma:** Os PCs não recebiam IP via DHCP — o pedido chegava ao R-Predio mas era descartado.
+ 
+**Causa:** A porta trunk entre o Switch1 e o R-Predio tinha a **Native VLAN configurada como VLAN 10** em vez da VLAN 1. O tráfego da VLAN 10 saía sem tag pelo trunk e o router não conseguia associar o pacote à sub-interface correta, descartando-o.
+ 
+**Solução:** Alterar a Native VLAN para 1 (padrão) em todas as portas trunk:
+```
+interface Fa0/10
+switchport trunk native vlan 1
+```
+ 
+---
+ 
+### Problema 2 — VLANs não propagadas nos switches em cascata
+ 
+**Sintoma:** O DHCP funcionava no Andar 1 e 2 mas falhava no Andar 3.
+ 
+**Causa:** Os switches em cascata (Switch2 → Switch0 → Switch1) precisam de ter as VLANs de todos os andares criadas localmente. O Switch0 não tinha as VLANs 30 e 40 criadas, por isso o STP bloqueava o tráfego dessas VLANs.
+ 
+**Solução:** Criar as VLANs em todos os switches da cadeia e aplicar `spanning-tree portfast trunk` nas portas trunk:
+```
+vlan 30
+name Chefe
+vlan 40
+name Telefones
+interface Fa0/16
+spanning-tree portfast trunk
+```
+ 
+---
+ 
+### Problema 3 — NAT a bloquear tráfego interno
+ 
+**Sintoma:** O ping entre o Prédio e a Casa do Dono falhava mesmo com as rotas corretas.
+ 
+**Causa:** O NAT Overloading estava configurado incorretamente no R-Casa — o `ip nat inside source` apontava para a interface errada, traduzindo tráfego interno de forma incorreta.
+ 
+**Solução:** Corrigir o NAT para apontar para a interface WAN correta:
+```
+no ip nat inside source list 1 interface GigabitEthernet0/0/1 overload
+ip nat inside source list 1 interface GigabitEthernet0/0/0 overload
+```
+ 
+---
+ 
+## Limitações do Simulador
+ 
+**VoIP — IP Phones sem configuração**
+Os IP Phones 7960 estão presentes na topologia mas não foi possível configurar o serviço de telefonia VoIP (Cisco CME / telephony-service) devido a limitações do Cisco Packet Tracer. O 2911 suporta VoIP em ambiente real com licença UC, mas o Packet Tracer não emula essa funcionalidade. Os IP Phones encontram-se na topologia apenas para representar a arquitetura real da rede.
+ 
+---
 
-##  TODO
-
-- [ ] LockOut de 1 min apos inserir password errada 3x 
-- [ ] Configuração do R-Predio (router-on-a-stick, sub-interfaces)
-- [ ] Configuração do R-Datacenter e R-Casa
-- [ ] Configuração do R-Internet
-- [ ] NAT Overloading (PAT)
-- [ ] RIPv2
-- [ ] Configuração dos servidores (DHCP, DNS, NTP, Web, Email, FTP)
-- [ ] Testes de conectividade end-to-end (ping e tracert)
+## TODO :
+**Falta Permitir o SSH da casa do Dono aceder ao Router do predio**
 
 ---
 
