@@ -1,8 +1,11 @@
 # Projeto de Rede Empresarial — Cisco Packet Tracer
 
 > Simulação de uma rede empresarial completa desenvolvida após a conclusão do curso **Networking Basics** da Cisco Networking Academy.
-
 ---
+> ⚠️ Este projeto não contempla redundância nem QoS, tópicos que serão abordados num projeto maior, a realizar após a conclusão completa do curso da Cisco Networking Academy.⚠️
+
+
+
 
 ## Descrição do Projeto
 
@@ -246,7 +249,7 @@ Os IP Phones 7960 estão presentes na topologia mas não foi possível configura
 
 ##  Certificação
 
-Este projeto foi desenvolvido após a conclusão do curso **Networking Basics** | **Networking Devices and Initial Configuration** da Cisco Networking Academy.
+Este projeto foi desenvolvido após a conclusão do curso **Networking Basics** da Cisco Networking Academy.
 
 ![Cisco Networking Academy](https://www.netacad.com/favicon.ico)
 
