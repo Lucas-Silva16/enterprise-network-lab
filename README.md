@@ -21,8 +21,6 @@ As três localizações estão interligadas via routers ISR4331 através de um r
 
 ![Imagem da rede](rede.png)
 
-**! Trocar esta imagem quando acabar de configurar tudo !**
-
 
 ---
 
@@ -77,7 +75,6 @@ O VLSM foi aplicado alocando subnets **do maior para o menor número de hosts**,
 | Ligação | Network | IP lado A | IP lado B | Broadcast |
 |---|---|---|---|---|
 | R-Predio ↔ R-Internet | 10.0.0.0/30 | 10.0.0.1 | 10.0.0.2 | 10.0.0.3 |
-| R-Datacenter ↔ R-Internet | 10.0.0.4/30 | 10.0.0.5 | 10.0.0.6 | 10.0.0.7 |
 | R-Casa ↔ R-Internet | 10.0.0.8/30 | 10.0.0.9 | 10.0.0.10 | 10.0.0.11 |
 
 > As ligações WAN usam /30 porque numa ligação point-to-point apenas são necessários 2 hosts (os dois routers), evitando desperdício de endereços.
@@ -122,6 +119,49 @@ Para ativar o SSH foi necessário:
 - Configurar `ip ssh version 2` e `transport input ssh` nas linhas VTY
 
 ---
+##  Acesso Remoto — SSH
+ 
+O dono da empresa consegue gerir **toda a rede do prédio** remotamente via SSH a partir do **PC18** na Casa do Dono, de forma segura e encriptada.
+ 
+### Dispositivos acessíveis via SSH
+ 
+| Dispositivo | IP de Acesso | Username |
+|---|---|---|
+| R-Predio | 192.168.1.129 | admin |
+| R-Casa | 192.168.3.1 | cisco |
+| Switch1 (RH) | 192.168.1.190 | admin |
+| Switch0 (IT) | 192.168.1.126 | admin |
+| Switch2 (Chefe) | 192.168.1.198 | admin |
+ 
+### Como foi configurado o SSH
+ 
+Em cada dispositivo foi necessário:
+ 
+```
+hostname R-Predio
+ip domain-name empresa.pt
+crypto key generate rsa
+! escolher 1024 bits
+ip ssh version 2
+username admin privilege 15 secret cisco123
+line vty 0 4
+transport input ssh
+login local
+exit
+```
+ 
+E nos switches foi necessário configurar um **IP de gestão** na VLAN respetiva:
+ 
+```
+! Exemplo Switch1
+interface Vlan10
+ip address 192.168.1.190 255.255.255.192
+no shutdown
+exit
+ip default-gateway 192.168.1.129
+```
+ 
+--- 
 
 ## Porquê não usar Spanning Tree nem LACP
 
@@ -180,6 +220,21 @@ ip nat inside source list 1 interface GigabitEthernet0/0/0 overload
 ```
  
 ---
+
+### Problema 4 — Topologia Inicial Incorreta (Server Room via R-Internet)
+ 
+**Sintoma:** Os PCs não recebiam IP via DHCP mesmo com o ip helper-address configurado corretamente no R-Predio.
+ 
+**Causa:** A topologia inicial tinha o R-Datacenter ligado ao R-Internet, ou seja o caminho era **R-Predio → R-Internet → R-Datacenter → DHCP Server**. O NAT Overloading traduzia os IPs privados no R-Internet, fazendo com que os pacotes DHCP chegassem ao servidor com IPs traduzidos e as respostas nunca chegavam ao PC destino corretamente.
+ 
+**Solução:** Redefinir a topologia da rede e ligar o Switch4 do Server Room **diretamente ao R-Predio**, eliminando o R-Datacenter como router intermédio. Desta forma o tráfego DHCP é interno e nunca passa pelo NAT:
+ 
+```
+Antes:  R-Predio → R-Internet → R-Datacenter → Switch4 → Servidores
+Depois: R-Predio → Switch4 → Servidores
+```
+
+---
  
 ## Limitações do Simulador
  
@@ -188,10 +243,6 @@ Os IP Phones 7960 estão presentes na topologia mas não foi possível configura
  
 ---
 
-## TODO :
-**Falta Permitir o SSH da casa do Dono aceder ao Router do predio**
-
----
 
 ##  Certificação
 
