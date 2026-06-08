@@ -246,7 +246,7 @@ Os IP Phones 7960 estão presentes na topologia mas não foi possível configura
 
 ##  Certificação
 
-Este projeto foi desenvolvido após a conclusão do curso **Networking Basics** da Cisco Networking Academy.
+Este projeto foi desenvolvido após a conclusão do curso **Networking Basics** | **Networking Devices and Initial Configuration** da Cisco Networking Academy.
 
 ![Cisco Networking Academy](https://www.netacad.com/favicon.ico)
 
